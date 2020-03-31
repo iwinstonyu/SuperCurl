@@ -18,7 +18,7 @@ public:
 	typedef shared_ptr<BaikeRequest> BaikeRequestRef;
 
 public:
-	BaiduBaikeCurl() {}
+	BaiduBaikeCurl(string url, string key, string secret) : url_(url), key_(key), secret_(secret) {}
 	virtual ~BaiduBaikeCurl() {}
 
 	void PushRequest(int num);
@@ -27,4 +27,8 @@ public:
 private:
 	virtual void AssignCurl(CURL* curl, ResponseRef respRef);
 	virtual void PrintLog(ECurlLogLev logLev, ostringstream& oss);
+
+	string url_;
+	string key_;
+	string secret_;
 };

@@ -13,6 +13,7 @@
 #define EASYLOGERR_SUPER_CURL EasyLogger(bind(&SuperCurl::PrintLog, this, ECurlLogLev::Err, std::placeholders::_1)).Stream()
 
 #define CURL_MULTI_WAIT_MSEC 10000
+#define CURL_MAX_RETRY_QUEUE_LENGTH 10000
 
 void SuperCurl::GlobalInit()
 {
@@ -57,9 +58,13 @@ void SuperCurl::SendRequest()
 			RequestRef reqRef = nullptr;
 			int idx = 0;
 			while (idx < multiAmount_) {
-				if(!(reqRef = reqs_.Read())){
-					break;
+				reqRef = reqs_.Read();
+				if (!reqRef && !retryReqs_.empty()) {
+					reqRef = retryReqs_.front();
+					retryReqs_.pop_front();
 				}
+				if (!reqRef)
+					break;
 
 				if (!curls[idx]) {
 					curls[idx] = curl_easy_init();
@@ -107,25 +112,56 @@ void SuperCurl::SendRequest()
 				auto curl = curlMsg->easy_handle;
 
 				ResponseRef respRef = nullptr;
-
 				if (!curlRespMap.count(curl)) {
 					EASYLOGERR_SUPER_CURL << "Fail match curlRespMap: " << curl;
 				}
 				else {
 					respRef = curlRespMap[curl];
-				}
 
-				if (curlMsg->msg == CURLMSG_DONE) {
-					if (respRef) {
+					if (curlMsg->msg == CURLMSG_DONE) {
 						respRef->res_ = curlMsg->data.result;
-						resps_.Write(respRef);
 					}
 				}
 
 				curl_multi_remove_handle(cm, curl);
-				if (respRef && respRef->reqRef_->headers_)
-					curl_slist_free_all(respRef->reqRef_->headers_);
-				curl_easy_reset(curl);
+			}
+
+			for (int i = 0; i < idx; ++i) {
+				if (curls[i]) {
+					curl_easy_reset(curls[i]);
+				}
+			}
+
+			for (auto& cr : curlRespMap) {
+				auto respRef = cr.second;
+
+				if (respRef) {
+					auto reqRef = respRef->reqRef_;
+
+					if (reqRef) {
+						if (reqRef->headers_) {
+							curl_slist_free_all(respRef->reqRef_->headers_);
+							reqRef->headers_ = nullptr;
+						}
+
+						if (respRef->res_ != CURLE_OK) {
+							if (reqRef->retries_ < retries_ && retryReqs_.size() < CURL_MAX_RETRY_QUEUE_LENGTH) {
+								EASYLOGERR_SUPER_CURL << "Fail curl and retry: " << respRef->res_ << " " << reqRef->id_ << " " << reqRef->retries_;
+								++reqRef->retries_;
+								retryReqs_.push_back(reqRef);
+								continue;
+							}
+							else {
+								EASYLOGERR_SUPER_CURL << "Fail curl and retry over: " << respRef->res_ << " " << reqRef->id_ << " " << reqRef->retries_;
+							}
+						}
+					}
+
+					resps_.Write(respRef);
+				}
+				else {
+					assert(0);
+				}
 			}
 		}
 		catch (std::exception e) {

@@ -43,10 +43,7 @@ void BaiduBaikeCurl::AssignCurl(CURL* curl, ResponseRef respRef)
 	auto reqRef = dynamic_pointer_cast<BaikeRequest>(respRef->reqRef_);
 	assert(reqRef);
 
-	reqRef->url_ = "http://api.sd.99.com/mobile/event";
-
-	string appkey = "3406808ABA9B41DA9A676DC40AB31D06";
-	string appSecret = "89B48629E8BD4F8B832837637C2602D4";
+	reqRef->url_ = url_;
 
 	Json::Value val1;
 	val1["1"] = 1;
@@ -55,7 +52,7 @@ void BaiduBaikeCurl::AssignCurl(CURL* curl, ResponseRef respRef)
 
 	Json::Value val2;
 	val2["EventValue"] = evt.substr(0, evt.length() - 1);
-	val2["AppKey"] = appkey;
+	val2["AppKey"] = key_;
 	val2["ServerID"] = std::to_string(1);
 	val2["EventID"] = "RegionUserCnt";
 	val2["CreateTime"] = static_cast<unsigned int>(time(nullptr));
@@ -63,9 +60,9 @@ void BaiduBaikeCurl::AssignCurl(CURL* curl, ResponseRef respRef)
 	reqRef->report_ = report1.substr(0, report1.length() - 1);
 
 	Json::Value val3;
-	val3["AppKey"] = appkey;
+	val3["AppKey"] = key_;
 	val3["TimeStamp"] = std::to_string(time(nullptr));
-	val3["Sign"] = md5(appkey + to_string(time(nullptr)) + appSecret).substr(7, 6);
+	val3["Sign"] = md5(key_ + to_string(time(nullptr)) + secret_).substr(7, 6);
 	string token1 = "_SD_TOKEN_:"+writer.write(val3);
 	reqRef->token_ = token1.substr(0, token1.length() - 1);
 
@@ -83,6 +80,7 @@ void BaiduBaikeCurl::AssignCurl(CURL* curl, ResponseRef respRef)
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, reqRef->headers_);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, reqRef->report_.c_str());
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, reqRef->report_.length());
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &SuperCurl::WriteCallback);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &respRef->respData_);

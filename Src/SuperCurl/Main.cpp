@@ -21,6 +21,7 @@
 
 #include "BaiduBaikeCurl.h"
 #include <Windows.h>
+#include "IniFile.h"
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "winmm.lib")
@@ -72,12 +73,20 @@ void Test1()
 int main()
 {
 	SuperCurl::GlobalInit();
-	
-	BaiduBaikeCurl baikeCurl;
+
+	wind::IniFile iniFile("../../../../conf.ini");
+	if (!iniFile.IsOpen())
+		return 1;
+
+	string url = iniFile.ReadString("app1", "url", "");
+	string key = iniFile.ReadString("app1", "key", "");
+	string secret = iniFile.ReadString("app1", "secret", "");
+
+	BaiduBaikeCurl baikeCurl(url, key, secret);
 
 	thread thr([&baikeCurl]()->void {
 		while (true) {
-			int loop = rand() % 20;
+			int loop = rand() % 3;
 			for (int i = 0; i < loop; ++i) {
 				baikeCurl.PushRequest(rand() % 100);
 			}

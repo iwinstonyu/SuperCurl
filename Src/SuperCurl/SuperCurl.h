@@ -26,6 +26,7 @@ public:
 		uint64_t id_ = 0;
 		string url_;
 		struct curl_slist* headers_ = nullptr;
+		int retries_ = 0;
 	};
 	typedef shared_ptr<Request> RequestRef;
 
@@ -57,6 +58,7 @@ private:
 protected:
 	uint64_t id_ = 1;
 	int multiAmount_ = 8;
+	int retries_ = 1;
 	SingleQueue<Request> reqs_;
 	deque<RequestRef> retryReqs_;
 	SingleQueue<Response> resps_;

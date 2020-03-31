@@ -332,3 +332,4 @@ ASALocalRun/
 # Directory of generated code
 Build/
 External/
+/conf.ini
